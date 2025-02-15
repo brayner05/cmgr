@@ -4,6 +4,7 @@
 # ==========================
 
 CC ?= gcc
+
 CFLAGS = -g -Wall -Werror
 LDFLAGS = -lncurses
 
@@ -18,11 +19,6 @@ endif
 # ===========================
 # Macro Definitions
 # ===========================
-
-# Get the prerequisites of a rule as a string, separated by comments
-define list_prereqs
-	$(strip $(foreach prereq,$^,$(prereq),))
-endef
 
 # Prints [ OK ] in green text
 define print_ok
@@ -72,7 +68,7 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(call create_dir,$(BIN_DIR))
 	$(CC) -o $@ $^ $(LDFLAGS)
-	$(call success_message,"Created target: $@ from: $(call list_prereqs)")
+	$(call success_message,"Created target: $@")
 
 # Build object files from C code
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
