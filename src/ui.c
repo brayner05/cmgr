@@ -6,9 +6,13 @@ static bool ui_active = false;
 
 void cmgr_init_ui(void) {
     initscr();
+    if (cmgr_ui_colour_enabled())
+        start_color();
+
     curs_set(1);
     noecho();
     keypad(stdscr, true);
+
     ui_active = true;
 }
 
@@ -49,4 +53,8 @@ void cmgr_ui_printf(int x, int y, const char *fmt, ...) {
     vw_printw(stdscr, fmt, arg_ptr);
     va_end(arg_ptr);
     cmgr_ui_refresh();
+}
+
+bool cmgr_ui_colour_enabled(void) {
+    return has_colors();
 }

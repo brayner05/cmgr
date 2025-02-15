@@ -80,6 +80,8 @@ cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
             format_str = "> %s\n";
         else
             format_str = "  %s\n";
+        
+        if (cmgr_ui_colour_enabled()) {}
 
         cmgr_ui_printf(
             cursor_position.x, cursor_position.y,
