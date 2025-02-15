@@ -2,6 +2,8 @@
 #include "cmgr.h"
 #include "ui.h"
 
+#define cmgr_assert(condition, error_type) do { if (!(condition)) return error_type; } while (0)
+
 static struct { int x; int y; } cursor_position = { 0, 0 };
 
 static bool initialized = false;
@@ -41,19 +43,14 @@ void cmgr_end(void) {
 }
 
 cmgr_Error cmgr_set_cursor_position(int x, int y) {
-    if (!initialized)
-        return CMGR_ERR_CURSOR;
-
+    cmgr_assert(initialized, CMGR_ERR_CURSOR);
     cursor_position.x = x;
     cursor_position.y = y;
-
     return CMGR_ERR_OK;
 }
 
 cmgr_Error cmgr_print_project_types(void) {
-    if (!initialized)
-        return CMGR_ERR_PRINTLN;
-
+    cmgr_assert(initialized, CMGR_ERR_PRINTLN);
     for (size_t i = 0; i < 2; ++i) {
         cmgr_println(project_types[i]);
         cmgr_set_cursor_position(cursor_position.x, cursor_position.y);
@@ -71,12 +68,9 @@ cmgr_Error cmgr_print_heading(const char *heading) {
 }
 
 cmgr_Error cmgr_println(const char *line) {
-    if (!initialized)
-        return CMGR_ERR_PRINTLN;
-
+    cmgr_assert(initialized, CMGR_ERR_PRINTLN);
     cmgr_ui_write_at(cursor_position.x, cursor_position.y, line);
     cmgr_set_cursor_position(cursor_position.x, cursor_position.y + 1);
     cmgr_ui_refresh();
-
     return CMGR_ERR_OK;
 }
