@@ -26,4 +26,6 @@ extern cmgr_Error cmgr_println(const char *line);
 
 extern cmgr_Error cmgr_print_heading(const char *heading);
 
+extern cmgr_Error cmgr_print_title(void);
+
 #endif

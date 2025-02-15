@@ -74,3 +74,20 @@ cmgr_Error cmgr_println(const char *line) {
     cmgr_ui_refresh();
     return CMGR_ERR_OK;
 }
+
+cmgr_Error cmgr_print_title(void) {
+    cmgr_Error error = CMGR_ERR_OK;
+    error |= cmgr_println("  ___ _ __ ___   __ _ _ __  ");
+    error |= cmgr_println(" / __| '_ ` _ \\ / _` | '__|");
+    error |= cmgr_println("| (__| | | | | | (_| | |   ");
+    error |= cmgr_println(" \\___|_| |_| |_|\\__, |_|  ");
+    error |= cmgr_println("                |___/      ");
+    return error;
+}
+
+/*                         
+   ___ _ __ ___   __ _ _ __ 
+  / __| '_ ` _ \ / _` | '__|
+ | (__| | | | | | (_| | |   
+  \___|_| |_| |_|\__, |_|   
+                 |___/     */

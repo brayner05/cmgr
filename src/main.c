@@ -6,7 +6,7 @@ int main(void) {
     if (init_error != CMGR_ERR_OK)
         cmgr_handle_error(init_error);
 
-    cmgr_println("cmgr");
+    cmgr_print_title();
     cmgr_println("");
     cmgr_print_heading("project type");
     cmgr_print_project_types();
