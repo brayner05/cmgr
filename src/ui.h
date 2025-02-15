@@ -17,4 +17,6 @@ extern void cmgr_ui_clear(void);
 
 extern void cmgr_ui_set_underlined(bool underlined);
 
+extern void cmgr_ui_printf(int x, int y, const char *fmt, ...);
+
 #endif

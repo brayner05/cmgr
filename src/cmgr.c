@@ -70,10 +70,22 @@ cmgr_Error cmgr_set_cursor_position(int x, int y) {
 cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
     cmgr_assert(menu_id < sizeof(menus) / sizeof(Menu), CMGR_ERR_MENU_ID);
     const Menu *menu = &menus[menu_id];
+    uint16_t menu_selection = 0;
 
     cmgr_print_heading(menu->name);
     for (size_t i = 0; i < menu->option_count; ++i) {
-        cmgr_println(menu->options[i]);
+        const char *format_str = NULL;
+
+        if (i == menu_selection)
+            format_str = "> %s\n";
+        else
+            format_str = "  %s\n";
+
+        cmgr_ui_printf(
+            cursor_position.x, cursor_position.y,
+            format_str, menu->options[i]);
+
+        cmgr_set_cursor_position(cursor_position.x, cursor_position.y + 1);
     }
 
     return CMGR_ERR_OK;
@@ -92,7 +104,6 @@ cmgr_Error cmgr_println(const char *line) {
     cmgr_assert(initialized, CMGR_ERR_PRINTLN);
     cmgr_ui_write_at(cursor_position.x, cursor_position.y, line);
     cmgr_set_cursor_position(cursor_position.x, cursor_position.y + 1);
-    cmgr_ui_refresh();
     return CMGR_ERR_OK;
 }
 
