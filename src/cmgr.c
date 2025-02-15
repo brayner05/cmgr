@@ -3,46 +3,64 @@
 #include "ui.h"
 
 #define cmgr_assert(condition, error_type) do { if (!(condition)) return error_type; } while (0)
+#define cmgr_count_options(table) (sizeof(table) / sizeof(cmgr_MenuOption))
 
 typedef struct {
     const char *name;
-    char **options;
+    const cmgr_MenuOption *options;
     size_t option_count;
     uint16_t selected_option;
 } cmgr_Menu;
 
-typedef char* cmgr_OptionsList[];
+
 const uint16_t cmgr_DEFAULT_SELECTION = 0;
 static bool initialized = false;
 static struct { int x; int y; } cursor_position = { 0, 0 };
 
 
+static const cmgr_MenuOption languages[] = {
+    [CMGR_LANGID_C] = { .id = CMGR_LANGID_C, .name = "C" },
+    [CMGR_LANGID_CPP] = { .id = CMGR_LANGID_CPP, .name = "C++" }
+};
+
+static const cmgr_MenuOption c_file_options[] = { 
+    [CMGR_TYPE_SOURCE]  = { .id = CMGR_TYPE_SOURCE, .name = "C Source File (.c)" },
+    [CMGR_TYPE_HEADER]  = { .id = CMGR_TYPE_HEADER, .name = "C Header File (.h)" },
+    [CMGR_TYPE_MODULE]  = { .id = CMGR_TYPE_MODULE, .name = "C Source & Header File" },
+};
+
+static const cmgr_MenuOption cpp_file_options[] = {
+    [CMGR_TYPE_SOURCE]  = { .id = CMGR_TYPE_SOURCE, .name = "Source File (.cpp, .cxx, .c++)" },
+    [CMGR_TYPE_HEADER]  = { .id = CMGR_TYPE_HEADER, .name = "Header File (.hpp, .h, .hxx)" },
+    [CMGR_TYPE_MODULE]  = { .id = CMGR_TYPE_MODULE, .name = "Source & Header File" },
+    [CMGR_TYPE_CLASS]   = { .id = CMGR_TYPE_CLASS,  .name = "C++ Class" },
+    [CMGR_TYPE_STRUCT]  = { .id = CMGR_TYPE_STRUCT, .name = "C++ Struct" }
+};
+
+
 static cmgr_Menu menus[] = {
     [CMGR_MENU_LANGUAGE] = { 
         .name = "Choose Language", 
-        .options = (cmgr_OptionsList) { "C", "C++" }, 
-        .option_count = 2,
+        .options = languages, 
+        .option_count = cmgr_count_options(languages),
         .selected_option = cmgr_DEFAULT_SELECTION
     },
+
     [CMGR_MENU_C_FILE] = { 
         .name = "C Management",
-        .options = (cmgr_OptionsList) { "C Source File", "C Header File", "C Source & Header File" }, 
-        .option_count = 3,
+        .options = c_file_options, 
+        .option_count = cmgr_count_options(c_file_options),
         .selected_option = cmgr_DEFAULT_SELECTION
     },
+
     [CMGR_MENU_CPP_FILE] = {
         .name = "C++ Management",
-        .options = (cmgr_OptionsList) { 
-            "C++ Source File", 
-            "C++ Header File", 
-            "C++ Source & Header File", 
-            "C++ Class", 
-            "C++ Struct" 
-        },
-        .option_count = 5,
+        .options = cpp_file_options,
+        .option_count = cmgr_count_options(cpp_file_options),
         .selected_option = cmgr_DEFAULT_SELECTION
     }
 };
+
 
 cmgr_Error cmgr_begin(void) {
     cmgr_Error errors = CMGR_ERR_OK;
@@ -155,8 +173,8 @@ uint16_t cmgr_get_selection_key(uint16_t menu_id) {
     return menus[menu_id].selected_option;
 }
 
-char *cmgr_get_selection_value(uint16_t menu_id) {
-    // cmgr_assert(menu_id < MENU_ID_MAX, CMGR_ERR_INVALID_KEY);
+cmgr_MenuOption cmgr_get_selection_value(uint16_t menu_id) {
+    // cmgr_assert(menu_id < CMGR_MENU_NULL, CMGR_ERR_INVALID_KEY);
     const cmgr_Menu *menu = &menus[menu_id];
     const uint16_t selection_key = menu->selected_option;
     return menu->options[selection_key];

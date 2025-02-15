@@ -7,8 +7,29 @@
 enum {
     CMGR_MENU_LANGUAGE   = 0,
     CMGR_MENU_C_FILE     = 1,
-    CMGR_MENU_CPP_FILE   = 2
+    CMGR_MENU_CPP_FILE   = 2,
+    CMGR_MENU_NULL
 };
+
+enum {
+    CMGR_LANGID_C       = 0,
+    CMGR_LANGID_CPP     = 1
+};
+
+enum {
+    CMGR_TYPE_SOURCE,
+    CMGR_TYPE_HEADER,
+    CMGR_TYPE_MODULE,
+    CMGR_TYPE_CLASS,
+    CMGR_TYPE_STRUCT
+};
+
+typedef size_t cmgr_OptionId;
+
+typedef struct {
+    const char *name;
+    const cmgr_OptionId id;
+} cmgr_MenuOption;
 
 extern const uint16_t cmgr_DEFAULT_SELECTION;
 
@@ -41,6 +62,6 @@ extern cmgr_Error cmgr_menu_prompt(uint16_t menu_id);
  */
 extern uint16_t cmgr_get_selection_key(uint16_t menu_id);
 
-extern char *cmgr_get_selection_value(uint16_t menu_id);
+extern cmgr_MenuOption cmgr_get_selection_value(uint16_t menu_id);
 
 #endif

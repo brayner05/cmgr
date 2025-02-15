@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "cmgr.h"
 
 int main(void) {
@@ -10,11 +11,10 @@ int main(void) {
     cmgr_println("");
     
     cmgr_menu_prompt(CMGR_MENU_LANGUAGE);
+    cmgr_MenuOption language = cmgr_get_selection_value(CMGR_MENU_LANGUAGE);
+
     cmgr_end();
 
-    uint16_t id = cmgr_get_selection_key(CMGR_MENU_LANGUAGE);
-    char *language = cmgr_get_selection_value(CMGR_MENU_LANGUAGE);
-    printf("Current selection: %u, %s\n", id, language);
-
+    printf("ID: %lu, Name: %s\n", language.id, language.name);
     getchar();
 }
