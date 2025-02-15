@@ -5,7 +5,7 @@
 
 CC ?= gcc
 
-CFLAGS = -g -Wall -Werror
+CFLAGS = -g -Wall -Werror -std=c99
 LDFLAGS = -lncurses
 
 # If make is called with VERBOSE=1, add verbose flag to CFLAGS

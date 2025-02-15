@@ -10,11 +10,11 @@ int main(void) {
     cmgr_println("");
     
     cmgr_menu_prompt(CMGR_MENU_LANGUAGE);
-    
-    int ch;
-    while ((ch = getchar()) != 0x0d) {
-        
-    }
-
     cmgr_end();
+
+    uint16_t id = cmgr_get_selection_key(CMGR_MENU_LANGUAGE);
+    char *language = cmgr_get_selection_value(CMGR_MENU_LANGUAGE);
+    printf("Current selection: %u, %s\n", id, language);
+
+    getchar();
 }

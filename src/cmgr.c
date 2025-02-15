@@ -5,26 +5,30 @@
 #define cmgr_assert(condition, error_type) do { if (!(condition)) return error_type; } while (0)
 
 typedef struct {
-    char *name;
+    const char *name;
     char **options;
     size_t option_count;
-} Menu;
+    uint16_t selected_option;
+} cmgr_Menu;
 
 typedef char* cmgr_OptionsList[];
+const uint16_t cmgr_DEFAULT_SELECTION = 0;
 static bool initialized = false;
 static struct { int x; int y; } cursor_position = { 0, 0 };
 
 
-static const Menu menus[] = {
+static cmgr_Menu menus[] = {
     [CMGR_MENU_LANGUAGE] = { 
         .name = "Choose Language", 
         .options = (cmgr_OptionsList) { "C", "C++" }, 
-        .option_count = 2 
+        .option_count = 2,
+        .selected_option = cmgr_DEFAULT_SELECTION
     },
     [CMGR_MENU_C_FILE] = { 
         .name = "C Management",
         .options = (cmgr_OptionsList) { "C Source File", "C Header File", "C Source & Header File" }, 
-        .option_count = 3
+        .option_count = 3,
+        .selected_option = cmgr_DEFAULT_SELECTION
     },
     [CMGR_MENU_CPP_FILE] = {
         .name = "C++ Management",
@@ -35,7 +39,8 @@ static const Menu menus[] = {
             "C++ Class", 
             "C++ Struct" 
         },
-        .option_count = 5
+        .option_count = 5,
+        .selected_option = cmgr_DEFAULT_SELECTION
     }
 };
 
@@ -66,17 +71,11 @@ cmgr_Error cmgr_set_cursor_position(int x, int y) {
     return CMGR_ERR_OK;
 }
 
-
-cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
-    cmgr_assert(menu_id < sizeof(menus) / sizeof(Menu), CMGR_ERR_MENU_ID);
-    const Menu *menu = &menus[menu_id];
-    uint16_t menu_selection = 0;
-
-    cmgr_print_heading(menu->name);
+static void print_menu_options(const cmgr_Menu *menu) {
     for (size_t i = 0; i < menu->option_count; ++i) {
         const char *format_str = NULL;
 
-        if (i == menu_selection)
+        if (i == menu->selected_option)
             format_str = "> %s\n";
         else
             format_str = "  %s\n";
@@ -89,7 +88,39 @@ cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
 
         cmgr_set_cursor_position(cursor_position.x, cursor_position.y + 1);
     }
+}
 
+cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
+    cmgr_assert(menu_id < sizeof(menus) / sizeof(cmgr_Menu), CMGR_ERR_MENU_ID);
+    cmgr_Menu *menu = &menus[menu_id];
+
+    cmgr_print_heading(menu->name);
+    print_menu_options(menu);
+
+    uint16_t key_code;
+    while ((key_code = cmgr_ui_readkey()) != CMGR_KEY_ENTER && key_code != '\n') {
+        cmgr_set_cursor_position(0, 0);
+        cmgr_print_title();
+        cmgr_println("");
+        cmgr_print_heading(menu->name);
+        print_menu_options(menu);
+
+        switch (key_code) {
+            case CMGR_KEY_UP: 
+                menu->selected_option = ((signed) menu->selected_option - 1) % menu->option_count; 
+                break;
+
+            case CMGR_KEY_DOWN:
+                menu->selected_option = ((signed) menu->selected_option + 1) % menu->option_count; 
+                break;
+
+            default: break;
+        }
+
+        napms(16);
+    }
+
+    cmgr_ui_clear();
     return CMGR_ERR_OK;
 }
 
@@ -118,4 +149,15 @@ cmgr_Error cmgr_print_title(void) {
     error |= cmgr_println(" \\___|_| |_| |_|\\__, |_|  ");
     error |= cmgr_println("                |___/      ");
     return error;
+}
+
+uint16_t cmgr_get_selection_key(uint16_t menu_id) {
+    return menus[menu_id].selected_option;
+}
+
+char *cmgr_get_selection_value(uint16_t menu_id) {
+    // cmgr_assert(menu_id < MENU_ID_MAX, CMGR_ERR_INVALID_KEY);
+    const cmgr_Menu *menu = &menus[menu_id];
+    const uint16_t selection_key = menu->selected_option;
+    return menu->options[selection_key];
 }
