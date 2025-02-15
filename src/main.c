@@ -13,8 +13,13 @@ int main(void) {
     cmgr_menu_prompt(CMGR_MENU_LANGUAGE);
     cmgr_MenuOption language = cmgr_get_selection_value(CMGR_MENU_LANGUAGE);
 
-    cmgr_end();
+    uint16_t next_menu_id = CMGR_MENU_C_FILE;
 
-    printf("ID: %lu, Name: %s\n", language.id, language.name);
+    if (language.id == CMGR_LANGID_CPP)
+        next_menu_id = CMGR_MENU_CPP_FILE;
+
+    cmgr_menu_prompt(next_menu_id);
+
     getchar();
+    cmgr_end();
 }

@@ -3,11 +3,14 @@
 #include "ui.h"
 
 static bool ui_active = false;
+static const cmgr_ColourId cmgr_SELECTION = 1;
 
 void cmgr_init_ui(void) {
     initscr();
-    if (cmgr_ui_colour_enabled())
+    if (cmgr_ui_colour_enabled()) {
         start_color();
+        init_pair(cmgr_SELECTION, COLOR_CYAN, COLOR_BLACK);
+    }
 
     curs_set(0);
     noecho();
@@ -62,4 +65,16 @@ bool cmgr_ui_colour_enabled(void) {
 
 uint16_t cmgr_ui_readkey(void) {
     return (uint16_t) wgetch(stdscr);
+}
+
+cmgr_Error cmgr_ui_start_select(void) {
+    cmgr_assert(cmgr_ui_colour_enabled(), CMGR_ERR_COLOUR_DISABLED);
+    attron(COLOR_PAIR(cmgr_SELECTION));
+    return CMGR_ERR_OK;
+}
+
+cmgr_Error cmgr_ui_end_select(void) {
+    cmgr_assert(cmgr_ui_colour_enabled(), CMGR_ERR_COLOUR_DISABLED);
+    attroff(COLOR_PAIR(cmgr_SELECTION));
+    return CMGR_ERR_OK;
 }

@@ -12,6 +12,10 @@ typedef enum {
     CMGR_KEY_ENTER  = KEY_ENTER
 } cmgr_Key;
 
+typedef uint8_t cmgr_Colour;
+
+typedef uint16_t cmgr_ColourId;
+
 extern void cmgr_init_ui(void);
 
 extern void cmgr_destroy_ui(void);
@@ -29,6 +33,10 @@ extern void cmgr_ui_set_underlined(bool underlined);
 extern void cmgr_ui_printf(int x, int y, const char *fmt, ...);
 
 extern bool cmgr_ui_colour_enabled(void);
+
+extern cmgr_Error cmgr_ui_start_select(void);
+
+extern cmgr_Error cmgr_ui_end_select(void);
 
 extern uint16_t cmgr_ui_readkey(void);
 

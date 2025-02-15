@@ -2,7 +2,6 @@
 #include "cmgr.h"
 #include "ui.h"
 
-#define cmgr_assert(condition, error_type) do { if (!(condition)) return error_type; } while (0)
 #define cmgr_count_options(table) (sizeof(table) / sizeof(cmgr_MenuOption))
 
 typedef struct {
@@ -15,7 +14,10 @@ typedef struct {
 
 const uint16_t cmgr_DEFAULT_SELECTION = 0;
 static bool initialized = false;
+
 static struct { int x; int y; } cursor_position = { 0, 0 };
+
+#define CMGR_CURSOR_POS_DEFINED 1
 
 
 static const cmgr_MenuOption languages[] = {
@@ -89,31 +91,39 @@ cmgr_Error cmgr_set_cursor_position(int x, int y) {
     return CMGR_ERR_OK;
 }
 
+
+static inline void cmgr_printf_here(const char *fmt, ...) {
+    va_list arg_ptr;
+    va_start(arg_ptr, fmt);
+    cmgr_ui_printf(cursor_position.x, cursor_position.y, fmt, arg_ptr);
+    va_end(arg_ptr);
+}
+
+
 static void print_menu_options(const cmgr_Menu *menu) {
     for (size_t i = 0; i < menu->option_count; ++i) {
-        const char *format_str = NULL;
-
-        if (i == menu->selected_option)
-            format_str = "> %s\n";
-        else
-            format_str = "  %s\n";
+        if (i == menu->selected_option) {
+            cmgr_ui_start_select();
+            cmgr_ui_printf(
+                cursor_position.x, cursor_position.y,
+                "> %s\n", menu->options[i]);
+            cmgr_ui_end_select();
+        } else {
+            cmgr_ui_printf(
+                cursor_position.x, cursor_position.y,
+                "  %s\n", menu->options[i]);
+        }
         
-        if (cmgr_ui_colour_enabled()) {}
-
-        cmgr_ui_printf(
-            cursor_position.x, cursor_position.y,
-            format_str, menu->options[i]);
-
         cmgr_set_cursor_position(cursor_position.x, cursor_position.y + 1);
     }
 }
 
+
 cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
     cmgr_assert(menu_id < sizeof(menus) / sizeof(cmgr_Menu), CMGR_ERR_MENU_ID);
-    cmgr_Menu *menu = &menus[menu_id];
 
-    cmgr_print_heading(menu->name);
-    print_menu_options(menu);
+    cmgr_ui_clear();
+    cmgr_Menu *menu = &menus[menu_id];
 
     uint16_t key_code;
     while ((key_code = cmgr_ui_readkey()) != CMGR_KEY_ENTER && key_code != '\n') {
@@ -121,6 +131,7 @@ cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
         cmgr_print_title();
         cmgr_println("");
         cmgr_print_heading(menu->name);
+        cmgr_println("");
         print_menu_options(menu);
 
         switch (key_code) {
@@ -138,7 +149,6 @@ cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
         napms(16);
     }
 
-    cmgr_ui_clear();
     return CMGR_ERR_OK;
 }
 
@@ -169,9 +179,11 @@ cmgr_Error cmgr_print_title(void) {
     return error;
 }
 
+
 uint16_t cmgr_get_selection_key(uint16_t menu_id) {
     return menus[menu_id].selected_option;
 }
+
 
 cmgr_MenuOption cmgr_get_selection_value(uint16_t menu_id) {
     // cmgr_assert(menu_id < CMGR_MENU_NULL, CMGR_ERR_INVALID_KEY);
@@ -179,3 +191,7 @@ cmgr_MenuOption cmgr_get_selection_value(uint16_t menu_id) {
     const uint16_t selection_key = menu->selected_option;
     return menu->options[selection_key];
 }
+
+// TODO: Add logging support
+// TODO: Add colour to selection
+// TODO: Refactor cmgr_assert to log error in bin/debug.log
