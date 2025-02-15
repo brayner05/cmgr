@@ -8,8 +8,8 @@ int main(void) {
 
     cmgr_print_title();
     cmgr_println("");
-    cmgr_print_heading("project type");
-    cmgr_print_project_types();
+    
+    cmgr_menu_prompt(CMGR_MENU_LANGUAGE);
     
     int ch;
     while ((ch = getchar()) != 0x0d) {
