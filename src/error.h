@@ -15,6 +15,14 @@ typedef enum {
     CMGR_ERR_COLOUR_DISABLED    = (0x01 << 6)
 } cmgr_Error;
 
+/**
+ * 
+ * Deprecated - DO NOT USE: Was initially used as a method of handling errors that 
+ * occur at runtime, but proved to not be very helpful as every new error 
+ * required a new condition to be passed to `cmgr_handle_error`.
+ * 
+ * @deprecated
+ */
 extern void cmgr_handle_error(cmgr_Error error) __attribute__((deprecated));
 
 extern bool cmgr_error_is_type(cmgr_Error error, cmgr_Error check);
