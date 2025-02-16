@@ -54,7 +54,7 @@ typedef size_t cmgr_OptionId;
  */
 typedef struct {
     const char *name;       /**< The name/title of the option (used to display in menu) */
-    const cmgr_OptionId id; /**< The unique identifier of the option (used to distinguish which is selected) */
+    const cmgr_OptionId id; /**< The unique identifier of the option (used as the index in an option table) */
 } cmgr_MenuOption;
 
 
@@ -66,7 +66,7 @@ typedef struct {
  * only `selection` exists.
  * 
  */
-typedef struct {
+typedef struct cmgr_MenuResult {
     bool had_error;
     union {
         cmgr_MenuOption selection;
@@ -81,7 +81,7 @@ typedef struct {
  * A shorter alias for `cmgr_MenuOptionOrError`.
  * 
  */
-typedef cmgr_MenuOptionOrError cmgr_MenuResult;
+typedef struct cmgr_MenuResult cmgr_MenuResult;
 
 
 /**
@@ -152,11 +152,11 @@ extern cmgr_Error cmgr_menu_prompt(uint16_t menu_id);
  */
 extern uint16_t cmgr_get_selection_key(uint16_t menu_id);
 
-extern cmgr_MenuOption cmgr_get_selection_value(uint16_t menu_id);
+extern cmgr_MenuResult cmgr_get_selection_value(uint16_t menu_id);
 
 extern void cmgr_reset_screen(void);
 
-extern void cmgr_print_file_heading(const cmgr_MenuOption *file_type);
+extern cmgr_Error cmgr_print_file_heading(const cmgr_MenuOption *file_type);
 
 extern cmgr_Error cmgr_input_file_directory(void);
 

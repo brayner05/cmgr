@@ -38,6 +38,11 @@ define create_dir
 	$(call success_message,"Created directory: $1")
 endef
 
+define remove_dir
+	$(Q)rm -rf $1
+	$(call success_message,"Removed directory: $1")
+endef
+
 
 # ===========================
 # Files & Directories
@@ -78,8 +83,8 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 
 # Delete compiler-generated files
 clean:
-	@rm -rfv $(BIN_DIR)
-	@rm -rfv $(OBJ_DIR)
+	$(call remove_dir,$(BIN_DIR))
+	$(call remove_dir,$(OBJ_DIR))
 	$(call success_message,"Clean complete")
 
 .PHONY: clean

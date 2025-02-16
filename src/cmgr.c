@@ -9,6 +9,8 @@
 #define cmgr_count_options(table) (sizeof(table) / sizeof(cmgr_MenuOption))
 #define cmgr_count_menus(table) (sizeof(table) / sizeof(cmgr_Menu))
 
+#define TUTTO_BENE CMGR_ERR_OK
+
 typedef struct {
     const char *name;
     const cmgr_MenuOption *options;
@@ -204,20 +206,38 @@ uint16_t cmgr_get_selection_key(uint16_t menu_id) {
  * `cmgr_assert(menu_id < CMGR_MENU_NULL, { true, { .error = CMGR_ERR_ } })`
  * 
  */
-cmgr_MenuOption cmgr_get_selection_value(uint16_t menu_id) {
+cmgr_MenuResult cmgr_get_selection_value(uint16_t menu_id) {
+    if (menu_id >= CMGR_MENU_NULL) {
+        cmgr_MenuResult error = { .had_error = true, .error = CMGR_ERR_MENU_ID };
+        return error;
+    }
+
     const cmgr_Menu *menu = &menus[menu_id];
     const uint16_t selection_key = menu->selected_option;
-    return menu->options[selection_key];
+
+    cmgr_MenuResult selection = { 
+        .had_error = false, 
+        .selection = menu->options[selection_key] 
+    };
+
+    return selection;
 }
 
 
-void cmgr_print_file_heading(const cmgr_MenuOption *file_type) {
+cmgr_Error cmgr_print_file_heading(const cmgr_MenuOption *file_type) {
     cmgr_reset_screen();
     
-    cmgr_MenuOption language = cmgr_get_selection_value(CMGR_MENU_LANGUAGE);
+    cmgr_MenuResult result = cmgr_get_selection_value(CMGR_MENU_LANGUAGE);
+    if (result.had_error)
+        return result.error;
+
+    cmgr_MenuOption language = result.selection;
+
     cmgr_ui_set_underlined(true);
     cmgr_ui_printf(cursor_position.x, cursor_position.y, "%s > %s", language.name, file_type->name);
     cmgr_ui_set_underlined(false);
+
+    return CMGR_ERR_OK;
 }
 
 
