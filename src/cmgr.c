@@ -1,8 +1,13 @@
 #include <stddef.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
 #include "cmgr.h"
 #include "ui.h"
 
 #define cmgr_count_options(table) (sizeof(table) / sizeof(cmgr_MenuOption))
+#define cmgr_count_menus(table) (sizeof(table) / sizeof(cmgr_Menu))
 
 typedef struct {
     const char *name;
@@ -16,8 +21,6 @@ const uint16_t cmgr_DEFAULT_SELECTION = 0;
 static bool initialized = false;
 
 static struct { int x; int y; } cursor_position = { 0, 0 };
-
-#define CMGR_CURSOR_POS_DEFINED 1
 
 
 static const cmgr_MenuOption languages[] = {
@@ -84,19 +87,19 @@ void cmgr_end(void) {
 }
 
 
+void cmgr_reset_screen(void) {
+    cmgr_ui_clear();
+    cmgr_set_cursor_position(0, 0);
+    cmgr_print_title();
+    cmgr_println("");
+}
+
+
 cmgr_Error cmgr_set_cursor_position(int x, int y) {
     cmgr_assert(initialized, CMGR_ERR_CURSOR);
     cursor_position.x = x;
     cursor_position.y = y;
     return CMGR_ERR_OK;
-}
-
-
-static inline void cmgr_printf_here(const char *fmt, ...) {
-    va_list arg_ptr;
-    va_start(arg_ptr, fmt);
-    cmgr_ui_printf(cursor_position.x, cursor_position.y, fmt, arg_ptr);
-    va_end(arg_ptr);
 }
 
 
@@ -122,7 +125,7 @@ static void print_menu_options(const cmgr_Menu *menu) {
 cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
     cmgr_assert(menu_id < sizeof(menus) / sizeof(cmgr_Menu), CMGR_ERR_MENU_ID);
 
-    cmgr_ui_clear();
+    cmgr_reset_screen();
     cmgr_Menu *menu = &menus[menu_id];
 
     uint16_t key_code;
@@ -169,6 +172,13 @@ cmgr_Error cmgr_println(const char *line) {
 }
 
 
+cmgr_Error cmgr_print(const char *str) {
+    cmgr_assert(initialized, CMGR_ERR_PRINTLN);
+    cmgr_ui_write_at(cursor_position.x, cursor_position.y, str);
+    return CMGR_ERR_OK;
+}
+
+
 cmgr_Error cmgr_print_title(void) {
     cmgr_Error error = CMGR_ERR_OK;
     error |= cmgr_println("  ___ _ __ ___   __ _ _ __  ");
@@ -185,13 +195,74 @@ uint16_t cmgr_get_selection_key(uint16_t menu_id) {
 }
 
 
+/**
+ * TODO: Create a compound struct with a value called `failed` and a
+ * union containing `cmgr_MenuOption` and `cmgr_Error`
+ * so that this function can return an error if the need be. Due to how 
+ * `cmgr_assert` is defined, this can be done like so:
+ * 
+ * `cmgr_assert(menu_id < CMGR_MENU_NULL, { true, { .error = CMGR_ERR_ } })`
+ * 
+ */
 cmgr_MenuOption cmgr_get_selection_value(uint16_t menu_id) {
-    // cmgr_assert(menu_id < CMGR_MENU_NULL, CMGR_ERR_INVALID_KEY);
     const cmgr_Menu *menu = &menus[menu_id];
     const uint16_t selection_key = menu->selected_option;
     return menu->options[selection_key];
 }
 
-// TODO: Add logging support
-// TODO: Add colour to selection
-// TODO: Refactor cmgr_assert to log error in bin/debug.log
+
+void cmgr_print_file_heading(const cmgr_MenuOption *file_type) {
+    cmgr_reset_screen();
+    
+    cmgr_MenuOption language = cmgr_get_selection_value(CMGR_MENU_LANGUAGE);
+    cmgr_ui_set_underlined(true);
+    cmgr_ui_printf(cursor_position.x, cursor_position.y, "%s > %s", language.name, file_type->name);
+    cmgr_ui_set_underlined(false);
+}
+
+
+cmgr_Error cmgr_input_file_directory(void) {
+    char *output_directory = getcwd(NULL, 0);
+    static const int padding = 3;
+
+    size_t index = strlen(output_directory);
+    if (index > 0)
+        --index;
+
+    uint16_t key_code;
+    while ((key_code = cmgr_ui_readkey()) != KEY_ENTER && key_code != '\n') {
+        cmgr_set_cursor_position(0, 0);
+        cmgr_print_title();
+        cmgr_println("");
+        cmgr_println("Where would you like to create the file(s)?");
+        cmgr_set_cursor_position(cursor_position.x, cursor_position.y + padding);
+
+        if (key_code == KEY_BACKSPACE) {
+            if (index > 0) {
+                output_directory[--index] = '\0';
+                cmgr_ui_clear();
+            }
+        }
+
+        if (isalpha(key_code))
+            output_directory[index++] = (char) key_code;
+
+        attron(A_REVERSE);
+        for (size_t i = 0; output_directory[i] != '\0'; ++i) {
+            char str[2] = {0};
+            str[0] = output_directory[i];
+
+            if (i == (size_t) index)
+                attron(A_BLINK);
+
+            cmgr_print(str);
+            cmgr_set_cursor_position(cursor_position.x + 1, cursor_position.y);
+            attroff(A_BLINK);
+        }
+        attroff(A_REVERSE);
+        napms(16);
+    }
+
+    free(output_directory);
+    return CMGR_ERR_OK;
+}

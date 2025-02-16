@@ -5,14 +5,14 @@
 
 CC ?= gcc
 
-CFLAGS = -g -Wall -Werror -std=c99
+CFLAGS = -g -Wall -Wextra -Werror -std=c99
 LDFLAGS = -lncursesw
 
 # If make is called with VERBOSE=1, add verbose flag to CFLAGS
 ifeq ($(VERBOSE),1)
 	CFLAGS += -v
 else
-	CC := @$(CC)
+	Q := @
 endif
 
 
@@ -34,7 +34,7 @@ endef
 
 # Wrapper around mkdir that prints a success message after creating a directory
 define create_dir
-	@mkdir -p $1
+	$(Q)mkdir -p $1
 	$(call success_message,"Created directory: $1")
 endef
 
@@ -67,13 +67,13 @@ all: $(TARGET)
 # Build target from object files
 $(TARGET): $(OBJECTS)
 	$(call create_dir,$(BIN_DIR))
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(Q)$(CC) -o $@ $^ $(LDFLAGS)
 	$(call success_message,"Created target: $@")
 
 # Build object files from C code
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(call create_dir,$(OBJ_DIR))
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(Q)$(CC) $(CFLAGS) -c -o $@ $<
 	$(call success_message,"Compiled source file: $<")
 
 # Delete compiler-generated files

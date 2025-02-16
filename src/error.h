@@ -15,7 +15,7 @@ typedef enum {
     CMGR_ERR_COLOUR_DISABLED    = (0x01 << 6)
 } cmgr_Error;
 
-extern void cmgr_handle_error(cmgr_Error error);
+extern void cmgr_handle_error(cmgr_Error error) __attribute__((deprecated));
 
 extern bool cmgr_error_is_type(cmgr_Error error, cmgr_Error check);
 
