@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <wchar.h>
 #include <string.h>
 #include "cmgr.h"
 
@@ -12,7 +13,7 @@ int main(void) {
     
     cmgr_menu_prompt(CMGR_MENU_LANGUAGE);
     cmgr_MenuOption language = cmgr_get_selection_value(CMGR_MENU_LANGUAGE);
-
+    
     uint16_t next_menu_id = CMGR_MENU_C_FILE;
 
     if (language.id == CMGR_LANGID_CPP)

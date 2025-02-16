@@ -106,12 +106,12 @@ static void print_menu_options(const cmgr_Menu *menu) {
             cmgr_ui_start_select();
             cmgr_ui_printf(
                 cursor_position.x, cursor_position.y,
-                "> %s\n", menu->options[i]);
+                "👉 %s\n", menu->options[i]);
             cmgr_ui_end_select();
         } else {
             cmgr_ui_printf(
                 cursor_position.x, cursor_position.y,
-                "  %s\n", menu->options[i]);
+                "   %s\n", menu->options[i]);
         }
         
         cmgr_set_cursor_position(cursor_position.x, cursor_position.y + 1);

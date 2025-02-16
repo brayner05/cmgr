@@ -1,11 +1,13 @@
 #include <stdarg.h>
 #include <stdio.h>
+#include <locale.h>
 #include "ui.h"
 
 static bool ui_active = false;
 static const cmgr_ColourId cmgr_SELECTION = 1;
 
 void cmgr_init_ui(void) {
+    setlocale(LC_ALL, "");
     initscr();
     if (cmgr_ui_colour_enabled()) {
         start_color();
