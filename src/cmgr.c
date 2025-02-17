@@ -124,15 +124,10 @@ static cmgr_MenuResult cmgr_get_prompt_selection(unsigned int key) {
     if (key >= CMGR_MENU_NULL)
         return result;
 
-    cmgr_PromptNode *prompt = NULL;
-    for (prompt = prompt_list.head; prompt != NULL; prompt = prompt->next) {
-        const cmgr_Menu *current_menu = prompt->menu;
-        if (current_menu == &menus[key]) {
-            result.had_error = false;
-            result.selection = &current_menu->options[current_menu->selection_index];
-            return result;
-        }
-    }
+    const cmgr_Menu *current_menu = &menus[key];
+
+    result.had_error = false;
+    result.selection = &current_menu->options[current_menu->selection_index];
 
     return result;
 }
@@ -301,6 +296,7 @@ cmgr_MenuResult cmgr_get_menu_selection(uint16_t menu_id) {
 
 cmgr_Error cmgr_print_file_heading(const cmgr_MenuOption *file_type) {
     cmgr_reset_screen();
+    static int i = 1;
     
     cmgr_MenuResult result = cmgr_get_prompt_selection(CMGR_MENU_LANGUAGE);
     if (result.had_error)
@@ -309,7 +305,8 @@ cmgr_Error cmgr_print_file_heading(const cmgr_MenuOption *file_type) {
     const cmgr_MenuOption *language = result.selection;
 
     cmgr_ui_set_underlined(true);
-    cmgr_ui_printf(cursor_position.x, cursor_position.y, "%s > %s", language->name, file_type->name);
+    cmgr_ui_printf(cursor_position.x, cursor_position.y, "%s > %s", language->name, file_type->name, i++);
+    cursor_goto(0, 0);
     cmgr_ui_set_underlined(false);
 
     return CMGR_ERR_OK;

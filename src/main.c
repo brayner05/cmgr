@@ -51,7 +51,6 @@ int main(void) {
     }
 
     const cmgr_MenuOption *project_type = project_type_result.selection;
-    puts(project_type->name);
     
     cmgr_print_file_heading(project_type);
     // cmgr_input_file_directory();
