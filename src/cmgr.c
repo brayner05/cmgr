@@ -8,21 +8,26 @@
 
 #define cmgr_count_options(table) (sizeof(table) / sizeof(cmgr_MenuOption))
 #define cmgr_count_menus(table) (sizeof(table) / sizeof(cmgr_Menu))
-
-#define TUTTO_BENE CMGR_ERR_OK
-
-typedef struct {
-    const char *name;
-    const cmgr_MenuOption *options;
-    size_t option_count;
-    uint16_t selected_option;
-} cmgr_Menu;
+#define cursor_goto(x, y) cmgr_set_cursor_position((x), (y))
 
 
 const uint16_t cmgr_DEFAULT_SELECTION = 0;
 static bool initialized = false;
-
 static struct { int x; int y; } cursor_position = { 0, 0 };
+
+
+typedef struct cmgr_PromptNode {
+    cmgr_Menu *menu;
+    struct cmgr_PromptNode *next;
+    struct cmgr_PromptNode *previous;
+} cmgr_PromptNode;
+
+
+typedef struct {
+    cmgr_PromptNode *head;
+    cmgr_PromptNode *tail;
+    size_t length;
+} cmgr_PromptList;
 
 
 static const cmgr_MenuOption languages[] = {
@@ -50,23 +55,93 @@ static cmgr_Menu menus[] = {
         .name = "Choose Language", 
         .options = languages, 
         .option_count = cmgr_count_options(languages),
-        .selected_option = cmgr_DEFAULT_SELECTION
+        .selection_index = 0
     },
 
     [CMGR_MENU_C_FILE] = { 
         .name = "C Management",
         .options = c_file_options, 
         .option_count = cmgr_count_options(c_file_options),
-        .selected_option = cmgr_DEFAULT_SELECTION
+        .selection_index = 0
     },
 
     [CMGR_MENU_CPP_FILE] = {
         .name = "C++ Management",
         .options = cpp_file_options,
         .option_count = cmgr_count_options(cpp_file_options),
-        .selected_option = cmgr_DEFAULT_SELECTION
+        .selection_index = 0
     }
 };
+
+
+static cmgr_PromptList prompt_list = { 0 };
+
+static cmgr_PromptNode *next_prompt = { 0 };
+
+static cmgr_PromptNode *previous_prompt = { 0 };
+
+
+static inline bool prompt_list_empty(void) {
+    return prompt_list.head == NULL;
+}
+
+
+cmgr_Error cmgr_add_prompt(unsigned int key) {
+    if (key >= cmgr_count_menus(menus))
+        return CMGR_ERR_MENU_ID;
+
+    cmgr_Menu *prompt = &menus[key];
+    cmgr_PromptNode *prompt_node = (cmgr_PromptNode *) calloc(1, sizeof(cmgr_PromptNode));
+    if (prompt_node == NULL)
+        return CMGR_ERR_MEMORY;
+
+    prompt_node->menu = prompt;
+    prompt_node->next = NULL;
+    prompt_node->previous = NULL;
+
+    if (prompt_list_empty()) {
+        prompt_list.head = prompt_list.tail = prompt_node;
+        prompt_list.length++;
+        next_prompt = prompt_list.head;
+        return CMGR_ERR_OK;
+    }
+
+    if (next_prompt == NULL)
+        next_prompt = prompt_node;
+
+    prompt_list.tail->next = prompt_node;
+    prompt_node->previous = prompt_list.tail;
+    prompt_list.tail = prompt_node;
+    prompt_list.length++;
+
+    return CMGR_ERR_OK;
+}
+
+
+static cmgr_MenuResult cmgr_get_prompt_selection(unsigned int key) {
+    cmgr_MenuResult result = { .had_error = true, .error = CMGR_ERR_INVALID_KEY };
+
+    if (key >= CMGR_MENU_NULL)
+        return result;
+
+    cmgr_PromptNode *prompt = NULL;
+    for (prompt = prompt_list.head; prompt != NULL; prompt = prompt->next) {
+        const cmgr_Menu *current_menu = prompt->menu;
+        if (current_menu == &menus[key]) {
+            result.had_error = false;
+            result.selection = &current_menu->options[current_menu->selection_index];
+            return result;
+        }
+    }
+
+    return result;
+}
+
+
+static cmgr_Error init_prompt_list(void) {
+    prompt_list = (cmgr_PromptList) { 0 };
+    return CMGR_ERR_OK;
+}
 
 
 cmgr_Error cmgr_begin(void) {
@@ -78,6 +153,8 @@ cmgr_Error cmgr_begin(void) {
     cmgr_init_ui();
     if (errors == CMGR_ERR_OK)
         initialized = true;
+
+    errors |= init_prompt_list();
 
     return errors;
 }
@@ -107,7 +184,7 @@ cmgr_Error cmgr_set_cursor_position(int x, int y) {
 
 static void print_menu_options(const cmgr_Menu *menu) {
     for (size_t i = 0; i < menu->option_count; ++i) {
-        if (i == menu->selected_option) {
+        if (i == (size_t) menu->selection_index) {
             cmgr_ui_start_select();
             cmgr_ui_printf(
                 cursor_position.x, cursor_position.y,
@@ -124,11 +201,8 @@ static void print_menu_options(const cmgr_Menu *menu) {
 }
 
 
-cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
-    cmgr_assert(menu_id < sizeof(menus) / sizeof(cmgr_Menu), CMGR_ERR_MENU_ID);
-
+cmgr_Error cmgr_menu_prompt(cmgr_Menu *menu) {
     cmgr_reset_screen();
-    cmgr_Menu *menu = &menus[menu_id];
 
     uint16_t key_code;
     while ((key_code = cmgr_ui_readkey()) != CMGR_KEY_ENTER && key_code != '\n') {
@@ -141,11 +215,11 @@ cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
 
         switch (key_code) {
             case CMGR_KEY_UP: 
-                menu->selected_option = ((signed) menu->selected_option - 1) % menu->option_count; 
+                menu->selection_index = ((signed) menu->selection_index - 1) % menu->option_count; 
                 break;
 
             case CMGR_KEY_DOWN:
-                menu->selected_option = ((signed) menu->selected_option + 1) % menu->option_count; 
+                menu->selection_index = ((signed) menu->selection_index + 1) % menu->option_count; 
                 break;
 
             default: break;
@@ -153,6 +227,18 @@ cmgr_Error cmgr_menu_prompt(uint16_t menu_id) {
 
         napms(16);
     }
+
+    return CMGR_ERR_OK;
+}
+
+
+cmgr_Error cmgr_next_prompt(void) {
+    if (next_prompt == NULL)
+        return CMGR_ERR_MENU_ID;
+
+    cmgr_menu_prompt(next_prompt->menu);
+    previous_prompt = next_prompt;
+    next_prompt = next_prompt->next;
 
     return CMGR_ERR_OK;
 }
@@ -191,96 +277,119 @@ cmgr_Error cmgr_print_title(void) {
     return error;
 }
 
+static inline cmgr_MenuResult cmgr_error_result(cmgr_Error error_type) {
+    cmgr_MenuResult error_result = { .had_error = true, .error = error_type };
+    return error_result;
+}
 
-uint16_t cmgr_get_selection_key(uint16_t menu_id) {
-    return menus[menu_id].selected_option;
+cmgr_MenuResult cmgr_get_last_prompt_result(void) {
+    if (previous_prompt == NULL)
+        return cmgr_error_result(CMGR_ERR_MENU_ID);
+    
+    const cmgr_Menu *prompt = previous_prompt->menu;
+    const cmgr_MenuOption *selection = &prompt->options[prompt->selection_index];
+    cmgr_MenuResult result = { .had_error = false, .selection = selection };
+
+    return result;
 }
 
 
-/**
- * TODO: Create a compound struct with a value called `failed` and a
- * union containing `cmgr_MenuOption` and `cmgr_Error`
- * so that this function can return an error if the need be. Due to how 
- * `cmgr_assert` is defined, this can be done like so:
- * 
- * `cmgr_assert(menu_id < CMGR_MENU_NULL, { true, { .error = CMGR_ERR_ } })`
- * 
- */
-cmgr_MenuResult cmgr_get_selection_value(uint16_t menu_id) {
-    if (menu_id >= CMGR_MENU_NULL) {
-        cmgr_MenuResult error = { .had_error = true, .error = CMGR_ERR_MENU_ID };
-        return error;
-    }
-
-    const cmgr_Menu *menu = &menus[menu_id];
-    const uint16_t selection_key = menu->selected_option;
-
-    cmgr_MenuResult selection = { 
-        .had_error = false, 
-        .selection = menu->options[selection_key] 
-    };
-
-    return selection;
+cmgr_MenuResult cmgr_get_menu_selection(uint16_t menu_id) {
+    return cmgr_get_prompt_selection((unsigned int) menu_id);
 }
 
 
 cmgr_Error cmgr_print_file_heading(const cmgr_MenuOption *file_type) {
     cmgr_reset_screen();
     
-    cmgr_MenuResult result = cmgr_get_selection_value(CMGR_MENU_LANGUAGE);
+    cmgr_MenuResult result = cmgr_get_prompt_selection(CMGR_MENU_LANGUAGE);
     if (result.had_error)
         return result.error;
 
-    cmgr_MenuOption language = result.selection;
+    const cmgr_MenuOption *language = result.selection;
 
     cmgr_ui_set_underlined(true);
-    cmgr_ui_printf(cursor_position.x, cursor_position.y, "%s > %s", language.name, file_type->name);
+    cmgr_ui_printf(cursor_position.x, cursor_position.y, "%s > %s", language->name, file_type->name);
     cmgr_ui_set_underlined(false);
 
     return CMGR_ERR_OK;
 }
 
 
-cmgr_Error cmgr_input_file_directory(void) {
-    char *output_directory = getcwd(NULL, 0);
-    static const int padding = 3;
+#define cmgr_get_terminal_width() getmaxx(stdscr)
 
-    size_t index = strlen(output_directory);
-    if (index > 0)
-        --index;
+
+static void cmgr_show_input(char *input_buffer, const size_t width, const int caret_position) {
+    size_t target_input_length = width;
+    size_t input_length = 0;
+
+    attron(A_REVERSE);
+    for (input_length = 0; input_buffer[input_length] != '\0'; ++input_length) {
+        if (input_length > target_input_length)
+            break;
+
+        attroff(A_BLINK);
+        if (input_length == (size_t) caret_position)
+            attron(A_BLINK);
+
+        mvaddch(cursor_position.y, cursor_position.x, input_buffer[input_length]);
+        cursor_goto(cursor_position.x + 1, cursor_position.y);
+    }
+
+    size_t number_of_blanks = target_input_length - input_length;
+    for (size_t i = 0; i < number_of_blanks; ++i) {
+        mvaddch(cursor_position.y, cursor_position.x, ' ');
+        cursor_goto(cursor_position.x + 1, cursor_position.y);
+    }
+    
+    attroff(A_REVERSE);
+    napms(16);
+}
+
+
+static bool cmgr_is_valid_path_char(uint16_t key_code) {
+    return isalnum(key_code) || isspace(key_code) || (key_code == '/') || (key_code == '.') || (key_code == '~');
+}
+
+
+cmgr_Error cmgr_input_file_directory(void) {
+    static const int padding = 3;
+    char *output_directory = getcwd(NULL, 0);
+
+    size_t output_directory_length = strlen(output_directory);
+    size_t caret_position = output_directory_length;
+    if (caret_position > 0)
+        --caret_position;
+
+    const size_t input_length = (size_t) (cmgr_get_terminal_width() / 2);
+
+    cmgr_set_cursor_position(0, 0);
+    cmgr_print_title();
+    cmgr_println("");
+    
+    cmgr_println("Where would you like to create the file(s)?");
+    cmgr_set_cursor_position(cursor_position.x, cursor_position.y + padding);
 
     uint16_t key_code;
     while ((key_code = cmgr_ui_readkey()) != KEY_ENTER && key_code != '\n') {
-        cmgr_set_cursor_position(0, 0);
-        cmgr_print_title();
-        cmgr_println("");
-        cmgr_println("Where would you like to create the file(s)?");
-        cmgr_set_cursor_position(cursor_position.x, cursor_position.y + padding);
+        clrtoeol();
+        cmgr_show_input(output_directory, input_length, caret_position);
 
         if (key_code == KEY_BACKSPACE) {
-            if (index > 0) {
-                output_directory[--index] = '\0';
-                cmgr_ui_clear();
+            if (caret_position > 0) {
+                output_directory[caret_position--] = '\0';
             }
+            continue;
         }
 
-        if (isalpha(key_code))
-            output_directory[index++] = (char) key_code;
+        if (!cmgr_is_valid_path_char(key_code))
+            continue;
 
-        attron(A_REVERSE);
-        for (size_t i = 0; output_directory[i] != '\0'; ++i) {
-            char str[2] = {0};
-            str[0] = output_directory[i];
+        if (caret_position >= input_length)
+            continue;
 
-            if (i == (size_t) index)
-                attron(A_BLINK);
-
-            cmgr_print(str);
-            cmgr_set_cursor_position(cursor_position.x + 1, cursor_position.y);
-            attroff(A_BLINK);
-        }
-        attroff(A_REVERSE);
-        napms(16);
+            // clear last after
+        output_directory[caret_position++] = (char) key_code;
     }
 
     free(output_directory);

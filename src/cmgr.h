@@ -69,8 +69,8 @@ typedef struct {
 typedef struct cmgr_MenuResult {
     bool had_error;
     union {
-        cmgr_MenuOption selection;
-        cmgr_Error error;
+        const cmgr_MenuOption *selection;
+        const cmgr_Error error;
     };
 } cmgr_MenuOptionOrError;
 
@@ -83,6 +83,13 @@ typedef struct cmgr_MenuResult {
  */
 typedef struct cmgr_MenuResult cmgr_MenuResult;
 
+
+typedef struct {
+    const char *name;
+    const cmgr_MenuOption *options;
+    size_t option_count;
+    cmgr_OptionId selection_index;
+} cmgr_Menu;
 
 /**
  * @extern
@@ -140,24 +147,20 @@ extern cmgr_Error cmgr_print_heading(const char *heading);
 
 extern cmgr_Error cmgr_print_title(void);
 
-extern cmgr_Error cmgr_menu_prompt(uint16_t menu_id);
+extern cmgr_Error cmgr_menu_prompt(cmgr_Menu *menu);
 
+extern cmgr_MenuResult cmgr_get_menu_selection(uint16_t menu_id) __attribute_deprecated__;
 
-/**
- * Gets the id/key of the selected menu option for the menu
- * matching menu_id. This allows access to the results of menu 
- * selections even after the respective menu has been closed.
- * @param menu_id The id/key of the menu to check. If the menu has
- * not yet run, `cmgr_DEFAULT_SELECTION` will be returned.
- */
-extern uint16_t cmgr_get_selection_key(uint16_t menu_id);
-
-extern cmgr_MenuResult cmgr_get_selection_value(uint16_t menu_id);
+extern cmgr_MenuResult cmgr_get_last_prompt_result(void);
 
 extern void cmgr_reset_screen(void);
 
 extern cmgr_Error cmgr_print_file_heading(const cmgr_MenuOption *file_type);
 
 extern cmgr_Error cmgr_input_file_directory(void);
+
+extern cmgr_Error cmgr_add_prompt(unsigned int key);
+
+extern cmgr_Error cmgr_next_prompt(void);
 
 #endif

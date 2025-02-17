@@ -12,7 +12,9 @@ typedef enum {
     CMGR_ERR_PRINTLN            = (0x01 << 3),
     CMGR_ERR_MENU_ID            = (0x01 << 4),
     CMGR_ERR_INVALID_KEY        = (0x01 << 5),
-    CMGR_ERR_COLOUR_DISABLED    = (0x01 << 6)
+    CMGR_ERR_COLOUR_DISABLED    = (0x01 << 6),
+    CMGR_ERR_MEMORY             = (0x01 << 7),
+    CMGR_ERR_PROMPT_LIST_INIT   = (0x01 << 8)
 } cmgr_Error;
 
 /**
