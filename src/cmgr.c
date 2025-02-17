@@ -7,12 +7,20 @@
 #include "ui.h"
 
 #define cmgr_count_options(table) (sizeof(table) / sizeof(cmgr_MenuOption))
+
 #define cmgr_count_menus(table) (sizeof(table) / sizeof(cmgr_Menu))
+
 #define cursor_goto(x, y) cmgr_set_cursor_position((x), (y))
+
+#define cmgr_min(a, b) ((a) < (b) ? (a) : (b))
+
+#define cmgr_get_terminal_width() getmaxx(stdscr)
 
 
 const uint16_t cmgr_DEFAULT_SELECTION = 0;
+
 static bool initialized = false;
+
 static struct { int x; int y; } cursor_position = { 0, 0 };
 
 
@@ -173,6 +181,7 @@ cmgr_Error cmgr_set_cursor_position(int x, int y) {
     cmgr_assert(initialized, CMGR_ERR_CURSOR);
     cursor_position.x = x;
     cursor_position.y = y;
+    move(y, x);
     return CMGR_ERR_OK;
 }
 
@@ -250,7 +259,7 @@ cmgr_Error cmgr_print_heading(const char *heading) {
 cmgr_Error cmgr_println(const char *line) {
     cmgr_assert(initialized, CMGR_ERR_PRINTLN);
     cmgr_ui_write_at(cursor_position.x, cursor_position.y, line);
-    cmgr_set_cursor_position(cursor_position.x, cursor_position.y + 1);
+    cursor_goto(0, cursor_position.y + 1);
     return CMGR_ERR_OK;
 }
 
@@ -294,10 +303,7 @@ cmgr_MenuResult cmgr_get_menu_selection(uint16_t menu_id) {
 }
 
 
-cmgr_Error cmgr_print_file_heading(const cmgr_MenuOption *file_type) {
-    cmgr_reset_screen();
-    static int i = 1;
-    
+cmgr_Error cmgr_print_file_heading(const cmgr_MenuOption *heading) {
     cmgr_MenuResult result = cmgr_get_prompt_selection(CMGR_MENU_LANGUAGE);
     if (result.had_error)
         return result.error;
@@ -305,73 +311,98 @@ cmgr_Error cmgr_print_file_heading(const cmgr_MenuOption *file_type) {
     const cmgr_MenuOption *language = result.selection;
 
     cmgr_ui_set_underlined(true);
-    cmgr_ui_printf(cursor_position.x, cursor_position.y, "%s > %s", language->name, file_type->name, i++);
-    cursor_goto(0, 0);
+    cmgr_ui_printf(cursor_position.x, cursor_position.y, "%s > %s", language->name, heading->name);
+    cursor_goto(0, cursor_position.y + 1);
+    cmgr_println("");
     cmgr_ui_set_underlined(false);
 
     return CMGR_ERR_OK;
 }
 
 
-#define cmgr_get_terminal_width() getmaxx(stdscr)
-
-
-static void cmgr_show_input(char *input_buffer, const size_t width, const int caret_position) {
-    size_t target_input_length = width;
-    size_t input_length = 0;
-
+static void cmgr_show_input(char *input_value, const size_t value_length, const int caret_position) {
     attron(A_REVERSE);
-    for (input_length = 0; input_buffer[input_length] != '\0'; ++input_length) {
-        if (input_length > target_input_length)
-            break;
-
-        attroff(A_BLINK);
-        if (input_length == (size_t) caret_position)
+    for (size_t i = 0; i < value_length; ++i) {
+        if (i == (size_t) caret_position) {
             attron(A_BLINK);
+        }
 
-        mvaddch(cursor_position.y, cursor_position.x, input_buffer[input_length]);
+        char next_char = input_value[i];
+        if (next_char == '\0')
+            mvaddch(cursor_position.y, cursor_position.x, ' ');
+        else
+            mvaddch(cursor_position.y, cursor_position.x, next_char);
+
         cursor_goto(cursor_position.x + 1, cursor_position.y);
+        attroff(A_BLINK);
     }
 
-    size_t number_of_blanks = target_input_length - input_length;
-    for (size_t i = 0; i < number_of_blanks; ++i) {
-        mvaddch(cursor_position.y, cursor_position.x, ' ');
-        cursor_goto(cursor_position.x + 1, cursor_position.y);
-    }
-    
     attroff(A_REVERSE);
-    napms(16);
+    cmgr_ui_refresh();
 }
 
 
 static bool cmgr_is_valid_path_char(uint16_t key_code) {
-    return isalnum(key_code) || isspace(key_code) || (key_code == '/') || (key_code == '.') || (key_code == '~');
+    return (
+        isalnum(key_code) || isspace(key_code) || 
+        (key_code == '/') || 
+        (key_code == '.') || 
+        (key_code == '~') || 
+        (key_code == '_') ||
+        (key_code == '-')
+    );
 }
 
 
+/**
+ * @note This function could likely be refactored into a few
+ * other functions, which would be much easier to read.
+ */
 cmgr_Error cmgr_input_file_directory(void) {
-    static const int padding = 3;
-    char *output_directory = getcwd(NULL, 0);
+    static const int padding = 1;
 
-    size_t output_directory_length = strlen(output_directory);
-    size_t caret_position = output_directory_length;
-    if (caret_position > 0)
-        --caret_position;
+    // The width of the input box itself
+    const size_t preferred_input_width = (size_t) (1.5 * cmgr_get_terminal_width() / 2);
+    const size_t input_width = cmgr_min(preferred_input_width, (size_t) cmgr_get_terminal_width());
 
-    const size_t input_length = (size_t) (cmgr_get_terminal_width() / 2);
+    // The size of the buffer to allocate for the output directory
+    const size_t input_buffer_length = input_width + 1;
 
-    cmgr_set_cursor_position(0, 0);
-    cmgr_print_title();
-    cmgr_println("");
+    // The directory buffer 
+    char *output_directory = (char *) calloc(input_buffer_length, sizeof(char));
+
+    // By default set the output directory to the current working directory
+    char *cwd = getcwd(NULL, 0);
+    size_t cwd_length = strlen(cwd);
+    strncpy(output_directory, cwd, cwd_length);
+
+    // Calculate the initial position of the caret.
+    // That is, the last character of the output directory.
+    size_t caret_position = caret_position = cmgr_min(strlen(output_directory) - 1, SIZE_MAX);
+
+
+    // Get the result of the last prompt
+    const cmgr_MenuResult last_result = cmgr_get_last_prompt_result();
+    if (last_result.had_error)
+        return last_result.error;
+
+    const cmgr_MenuOption *heading = last_result.selection;
+
+    // Clear the screen, print the title, and then the language and file type
+    cmgr_reset_screen();
+    cmgr_print_file_heading(heading);
     
     cmgr_println("Where would you like to create the file(s)?");
-    cmgr_set_cursor_position(cursor_position.x, cursor_position.y + padding);
+    cursor_goto(cursor_position.x, cursor_position.y + padding);
 
+    // Read the output directory from the user via the input box.
     uint16_t key_code;
     while ((key_code = cmgr_ui_readkey()) != KEY_ENTER && key_code != '\n') {
+        cursor_goto(0, cursor_position.y);
         clrtoeol();
-        cmgr_show_input(output_directory, input_length, caret_position);
+        cmgr_show_input(output_directory, input_buffer_length, caret_position);
 
+        // Remove a character whn backspace is pressed
         if (key_code == KEY_BACKSPACE) {
             if (caret_position > 0) {
                 output_directory[caret_position--] = '\0';
@@ -379,16 +410,22 @@ cmgr_Error cmgr_input_file_directory(void) {
             continue;
         }
 
+        // If the key pressed is not a valid path character, don't add it to the buffer
         if (!cmgr_is_valid_path_char(key_code))
             continue;
 
-        if (caret_position >= input_length)
-            continue;
 
-            // clear last after
-        output_directory[caret_position++] = (char) key_code;
+        // Store a valid key character in the buffer at the current caret position.
+        output_directory[caret_position] = (char) key_code;
+
+        // Move the caret 1 character forward, unless it is already at the end of the input
+        caret_position = cmgr_min(caret_position + 1, input_width);
+
+        napms(16);
     }
 
+    // Release the input buffer
     free(output_directory);
+
     return CMGR_ERR_OK;
 }

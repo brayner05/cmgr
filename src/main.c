@@ -53,11 +53,10 @@ int main(void) {
     const cmgr_MenuOption *project_type = project_type_result.selection;
     
     cmgr_print_file_heading(project_type);
-    // cmgr_input_file_directory();
+    cmgr_input_file_directory();
 
     // Todo: prompt for file location but first recommend one
     // Todo: Generate header guards
-    getchar();
 
 cleanup:
     cmgr_end();
