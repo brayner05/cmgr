@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include <wchar.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "cmgr.h"
 
 
@@ -53,9 +54,13 @@ int main(void) {
     const cmgr_MenuOption *project_type = project_type_result.selection;
     
     cmgr_print_file_heading(project_type);
-    cmgr_input_file_directory();
-
-    // Todo: prompt for file location but first recommend one
+    cmgr_InputResult input_result = cmgr_input_file_directory();
+    if (input_result.had_error) {
+        error = input_result.error;
+        goto cleanup;
+    }
+    const cmgr_InputValue output_directory = input_result.value;
+    free(output_directory.data);
     // Todo: Generate header guards
 
 cleanup:

@@ -91,6 +91,21 @@ typedef struct {
     cmgr_OptionId selection_index;
 } cmgr_Menu;
 
+
+typedef struct {
+    char *data;
+    size_t length;
+} cmgr_InputValue;
+
+
+typedef struct {
+    const bool had_error;
+    union {
+        const cmgr_InputValue value;
+        const cmgr_Error error;
+    };
+} cmgr_InputResult;
+
 /**
  * @extern
  */
@@ -157,7 +172,7 @@ extern void cmgr_reset_screen(void);
 
 extern cmgr_Error cmgr_print_file_heading(const cmgr_MenuOption *file_type);
 
-extern cmgr_Error cmgr_input_file_directory(void);
+extern cmgr_InputResult cmgr_input_file_directory(void);
 
 extern cmgr_Error cmgr_add_prompt(unsigned int key);
 

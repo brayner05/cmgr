@@ -38,6 +38,21 @@ typedef struct {
 } cmgr_PromptList;
 
 
+typedef struct {
+    char *buffer;
+    size_t input_length;
+    const size_t input_capacity;
+    size_t caret_position;
+} cmgr_InputBuffer;
+
+
+typedef enum {
+    CMGR_STATE_BACKSPACE,
+    CMGR_STATE_INVALID_KEY,
+    CMGR_STATE_WRITE
+} cmgr_InputState;
+
+
 static const cmgr_MenuOption languages[] = {
     [CMGR_LANGID_C] = { .id = CMGR_LANGID_C, .name = "C" },
     [CMGR_LANGID_CPP] = { .id = CMGR_LANGID_CPP, .name = "C++" }
@@ -354,78 +369,112 @@ static bool cmgr_is_valid_path_char(uint16_t key_code) {
 }
 
 
-/**
- * @note This function could likely be refactored into a few
- * other functions, which would be much easier to read.
- */
-cmgr_Error cmgr_input_file_directory(void) {
-    static const int padding = 1;
-
-    // The width of the input box itself
+static inline size_t cmgr_compute_input_width(void) {
     const size_t preferred_input_width = (size_t) (1.5 * cmgr_get_terminal_width() / 2);
     const size_t input_width = cmgr_min(preferred_input_width, (size_t) cmgr_get_terminal_width());
+    return input_width;
+}
 
-    // The size of the buffer to allocate for the output directory
-    const size_t input_buffer_length = input_width + 1;
 
-    // The directory buffer 
-    char *output_directory = (char *) calloc(input_buffer_length, sizeof(char));
+static inline char *cmgr_init_output_directory(size_t buffer_length) {
+    char *output_directory = (char *) calloc(buffer_length, sizeof(char));
+    if (output_directory == NULL)
+        return NULL;
 
     // By default set the output directory to the current working directory
     char *cwd = getcwd(NULL, 0);
     size_t cwd_length = strlen(cwd);
     strncpy(output_directory, cwd, cwd_length);
 
-    // Calculate the initial position of the caret.
-    // That is, the last character of the output directory.
-    size_t caret_position = caret_position = cmgr_min(strlen(output_directory) - 1, SIZE_MAX);
+    return output_directory;
+}
 
+
+static cmgr_InputState cmgr_handle_directory_input(uint16_t key_code, cmgr_InputBuffer* output_buffer) {
+    // Remove a character whn backspace is pressed
+    if (key_code == KEY_BACKSPACE) {
+        if (output_buffer->caret_position > 0) {
+            output_buffer->buffer[output_buffer->caret_position--] = '\0';
+        }
+        return CMGR_STATE_BACKSPACE;
+    }
+
+    // If the key pressed is not a valid path character, don't add it to the buffer
+    if (!cmgr_is_valid_path_char(key_code))
+        return CMGR_STATE_INVALID_KEY;
+
+    // Store a valid key character in the buffer at the current caret position.
+    output_buffer->buffer[output_buffer->caret_position] = (char) key_code;
+
+    // Move the caret 1 character forward, unless it is already at the end of the input
+    output_buffer->caret_position = 
+        cmgr_min(output_buffer->caret_position + 1, output_buffer->input_capacity);
+
+    return CMGR_STATE_WRITE;
+}
+
+
+static void cmgr_print_input_prompt(void) {
+    static const int padding = 1;
+    cmgr_println("Where would you like to create the file(s)?");
+    cursor_goto(cursor_position.x, cursor_position.y + padding);
+}
+
+
+cmgr_InputResult cmgr_input_file_directory(void) {
+    // Calculate the width of the input box
+    size_t input_width = cmgr_compute_input_width();
+
+    // The size of the buffer to allocate for the output directory
+    const size_t input_buffer_length = input_width + 1;
+    char *output_directory = cmgr_init_output_directory(input_buffer_length);
+    if (output_directory == NULL) {
+        const cmgr_InputResult memory_error = { .had_error = true, .error = CMGR_ERR_MEMORY };
+        return memory_error;
+    }
+
+
+    const size_t output_directory_initial_length = strlen(output_directory);
+
+    cmgr_InputBuffer output_buffer = {
+         .buffer = output_directory, 
+         .input_capacity = input_width, 
+         .input_length = output_directory_initial_length,
+         .caret_position = cmgr_min(output_directory_initial_length - 1, SIZE_MAX)
+    };
 
     // Get the result of the last prompt
     const cmgr_MenuResult last_result = cmgr_get_last_prompt_result();
-    if (last_result.had_error)
-        return last_result.error;
+    if (last_result.had_error) {
+        const cmgr_InputResult prompt_error = { .had_error = true, .error = last_result.error };
+        return prompt_error;
+    }
 
     const cmgr_MenuOption *heading = last_result.selection;
 
     // Clear the screen, print the title, and then the language and file type
     cmgr_reset_screen();
     cmgr_print_file_heading(heading);
-    
-    cmgr_println("Where would you like to create the file(s)?");
-    cursor_goto(cursor_position.x, cursor_position.y + padding);
+    cmgr_print_input_prompt();
 
     // Read the output directory from the user via the input box.
     uint16_t key_code;
     while ((key_code = cmgr_ui_readkey()) != KEY_ENTER && key_code != '\n') {
         cursor_goto(0, cursor_position.y);
         clrtoeol();
-        cmgr_show_input(output_directory, input_buffer_length, caret_position);
-
-        // Remove a character whn backspace is pressed
-        if (key_code == KEY_BACKSPACE) {
-            if (caret_position > 0) {
-                output_directory[caret_position--] = '\0';
-            }
-            continue;
+        cmgr_show_input(output_directory, input_buffer_length, output_buffer.caret_position);
+        switch (cmgr_handle_directory_input(key_code, &output_buffer)) {
+            case CMGR_STATE_BACKSPACE:
+            case CMGR_STATE_INVALID_KEY:
+                continue;
+                
+            default: break;
         }
-
-        // If the key pressed is not a valid path character, don't add it to the buffer
-        if (!cmgr_is_valid_path_char(key_code))
-            continue;
-
-
-        // Store a valid key character in the buffer at the current caret position.
-        output_directory[caret_position] = (char) key_code;
-
-        // Move the caret 1 character forward, unless it is already at the end of the input
-        caret_position = cmgr_min(caret_position + 1, input_width);
-
         napms(16);
     }
 
-    // Release the input buffer
-    free(output_directory);
+    const cmgr_InputValue input_value = { .data = output_directory, .length = output_buffer.input_length };
+    const cmgr_InputResult success_result = { .had_error = false, .value = input_value };
 
-    return CMGR_ERR_OK;
+    return success_result;
 }
